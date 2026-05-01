@@ -1,27 +1,30 @@
-# ใช้ Node.js เวอร์ชัน 24 ตามที่โปรเจกต์กำหนด
+# ใช้ Node.js เวอร์ชัน 24 ตาม Requirement ของโปรเจกต์
 FROM node:24-slim
 
-# เพิ่มบรรทัดนี้: ติดตั้ง Python และ Build Tools ที่จำเป็นสำหรับคอมไพล์ better-sqlite3
+# ติดตั้ง Python และ Build Tools สำหรับ compile better-sqlite3
 RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 
-# เปิดใช้งาน Corepack สำหรับ pnpm
+# เปิดใช้งาน Corepack สำหรับ pnpm 10.33.2
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
 # กำหนด Working Directory
 WORKDIR /app
 
-# คัดลอกไฟล์ทั้งหมดลงใน Container
+# คัดลอก Source code ทั้งหมด
 COPY . .
 
 # ติดตั้ง Dependencies
 RUN pnpm install
 
-# Build โปรเจกต์สำหรับ Production (Frontend + Daemon)
+# Build โปรเจกต์
 RUN pnpm build
-RUN pnpm --filter @open-design/daemon build
 
-# Expose พอร์ตที่ Daemon ใช้งาน
-EXPOSE 7456
+# สร้างโฟลเดอร์ .od เตรียมไว้สำหรับ Mount ข้อมูล
+RUN mkdir -p /app/.od
 
-# คำสั่งสำหรับรันโปรเจกต์ในโหมด Production
-CMD ["npm", "start"]
+# Expose Port 3000 (สำหรับ Web)
+EXPOSE 3000
+
+# ใช้คำสั่ง tools-dev เพื่อรัน Web และ Daemon ตามที่โปรเจกต์ระบุ
+# ระบุ --web-port ให้ชัดเจนเพื่อนำไปใช้ตั้งค่า Proxy ต่อ
+CMD ["pnpm", "tools-dev", "run", "web", "--web-port", "3000"]
