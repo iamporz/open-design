@@ -56,12 +56,12 @@ RUN pnpm --filter @open-design/daemon build
 RUN mkdir -p /app/.od
 
 ENV NODE_ENV=production
-ENV PORT=8080
 ENV HOST=0.0.0.0
 ENV HOSTNAME=0.0.0.0
+ENV PORT=8080
 ENV OD_DATA_DIR=/app/.od
 ENV OD_CODEX_DISABLE_PLUGINS=1
 
 EXPOSE 8080
 
-CMD ["node", "apps/daemon/dist/cli.js"]
+CMD ["node", "apps/daemon/dist/cli.js", "--host", "0.0.0.0", "--port", "8080", "--no-open"]
