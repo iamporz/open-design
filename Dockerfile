@@ -40,9 +40,20 @@
 
 FROM node:24-slim
 
-RUN apt-get update && apt-get install -y python3 make g++ curl \
+# Install native build deps + socat for port forwarding
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    curl \
+    socat \
   && rm -rf /var/lib/apt/lists/*
 
+# Mock xdg-open so container won't crash when app tries to open browser
+RUN printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open \
+  && chmod +x /usr/local/bin/xdg-open
+
+# Enable pnpm via corepack
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
 WORKDIR /app
@@ -50,18 +61,23 @@ WORKDIR /app
 COPY . .
 
 RUN pnpm install --frozen-lockfile
+
+# Build web static export
 RUN pnpm build
+
+# Build daemon CLI
 RUN pnpm --filter @open-design/daemon build
 
+# Persistent data directory
 RUN mkdir -p /app/.od
 
 ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-ENV HOSTNAME=0.0.0.0
-ENV PORT=8080
 ENV OD_DATA_DIR=/app/.od
 ENV OD_CODEX_DISABLE_PLUGINS=1
 
+# Traefik/Dokploy should point to this port
 EXPOSE 8080
 
-CMD ["node", "apps/daemon/dist/cli.js", "--host", "0.0.0.0", "--port", "8080", "--no-open"]
+# Open Design daemon currently listens on 127.0.0.1:7456
+# So we expose 0.0.0.0:8080 and forward it to daemon internal port
+CMD ["/bin/sh", "-c", "node apps/daemon/dist/cli.js & socat TCP-LISTEN:8080,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:7456"]
