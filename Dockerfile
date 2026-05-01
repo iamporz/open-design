@@ -40,37 +40,28 @@
 
 FROM node:24-slim
 
-RUN apt-get update && apt-get install -y python3 make g++ \
+RUN apt-get update && apt-get install -y python3 make g++ curl \
   && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps ./apps
-COPY packages ./packages
-COPY tools ./tools
-COPY skills ./skills
-COPY design-systems ./design-systems
-COPY assets ./assets
-COPY prompt-templates ./prompt-templates
-COPY scripts ./scripts
-COPY docs ./docs
+COPY . .
 
 RUN pnpm install --frozen-lockfile
-
-# build web static export -> apps/web/out
 RUN pnpm build
-
-# build daemon CLI -> apps/daemon/dist/cli.js
 RUN pnpm --filter @open-design/daemon build
 
 RUN mkdir -p /app/.od
 
 ENV NODE_ENV=production
-ENV OD_DATA_DIR=.od
+ENV PORT=8080
+ENV HOST=0.0.0.0
+ENV HOSTNAME=0.0.0.0
+ENV OD_DATA_DIR=/app/.od
+ENV OD_CODEX_DISABLE_PLUGINS=1
 
 EXPOSE 8080
 
-CMD ["node", "apps/daemon/dist/cli.js", "--port", "8080", "--no-open"]
+CMD ["node", "apps/daemon/dist/cli.js"]
