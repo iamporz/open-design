@@ -38,28 +38,21 @@
 # CMD ["pnpm", "tools-dev", "run", "web", "--web-port", "3000"]
 
 
-# ใช้ Node.js เวอร์ชัน 24
 FROM node:24-slim
 
-# เพิ่ม socat ลงไปในคำสั่งติดตั้ง
-RUN apt-get update && apt-get install -y python3 make g++ socat && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y python3 make g++ socat \
+  && rm -rf /var/lib/apt/lists/*
 
-# เปิดใช้งาน Corepack สำหรับ pnpm
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 
 WORKDIR /app
 COPY . .
 
-# ทริค: สร้างโฟลเดอร์หลอกป้องกัน Warning
 RUN mkdir -p apps/daemon/dist && touch apps/daemon/dist/cli.js
-
 RUN pnpm install
 RUN pnpm build
-
 RUN mkdir -p /app/.od
 
-# ขยับมาใช้พอร์ต 8080 แทนสำหรับการเปิดรับ Traffic จากภายนอก
 EXPOSE 8080
 
-# คำสั่งรัน: สั่งรัน socat ให้ส่งข้อมูลจาก 8080 ไปหา 3000 และรัน tools-dev ไปพร้อมๆ กัน
 CMD ["/bin/sh", "-c", "socat TCP-LISTEN:8080,fork,bind=0.0.0.0 TCP:127.0.0.1:3000 & pnpm exec tools-dev run web --web-port 3000"]
